@@ -1,8 +1,9 @@
-import { updateSession } from "@/lib/supabase/middleware";
-import { type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+export async function middleware() {
+  // For now, just pass through all requests since we're using client-side JWT auth
+  // You can add custom middleware logic here if needed
+  return NextResponse.next();
 }
 
 export const config = {
