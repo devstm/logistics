@@ -1,0 +1,341 @@
+// Gaza Humanitarian Logistics Multi-Tenant Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Multi-Tenant Core
+model Tenant {
+  id                String   @id @default(cuid())
+  name              String
+  configJson        Json?    @map("config_json") // Mission flow definition, GL rules, reconciliation schema
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users             User[]
+  missions          Mission[]
+  contractors       Contractor[]
+  drivers           Driver[]
+  trucks            Truck[]
+  fuelEvents        FuelEvent[] @relation("TenantFuelEvents")
+  holdingPointEvents HoldingPointEvent[] @relation("TenantHoldingPointEvents")
+  loadEvents        LoadEvent[] @relation("TenantLoadEvents")
+  exitEvents        ExitEvent[] @relation("TenantExitEvents")
+  warehouseDeliveries WarehouseDelivery[] @relation("TenantWarehouseDeliveries")
+  maintenanceRecords MaintenanceRecord[] @relation("TenantMaintenanceRecords")
+  reconciliations   Reconciliation[] @relation("TenantReconciliations")
+  auditEvents       AuditEvent[] @relation("TenantAuditEvents")
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  email     String   @unique
+  name      String?
+  password  String
+  role      UserRole @default(DISPATCHER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdMissions Mission[]     @relation("MissionCreator")
+  auditEvents     AuditEvent[]  @relation("AuditUser")
+
+  @@map("users")
+}
+
+model Mission {
+  id          String      @id @default(cuid())
+  tenantId    String      @map("tenant_id")
+  name        String
+  date        DateTime
+  border      BorderType
+  status      MissionStatus @default(CREATED)
+  stepsJson   Json?       @map("steps_json") // Based on tenant config
+  createdAt   DateTime    @default(now()) @map("created_at")
+  createdBy   String      @map("created_by")
+
+  // Relations
+  tenant                Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator               User                @relation("MissionCreator", fields: [createdBy], references: [id])
+  trucks                Truck[]
+  fuelEvents            FuelEvent[]
+  holdingPointEvents    HoldingPointEvent[]
+  loadEvents            LoadEvent[]
+  exitEvents            ExitEvent[]
+  warehouseDeliveries   WarehouseDelivery[]
+  maintenanceRecords    MaintenanceRecord[]
+  reconciliations       Reconciliation[]
+
+  @@map("missions")
+}
+
+model Contractor {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  pocName   String   @map("poc_name")
+  pocPhone  String   @map("poc_phone")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  drivers Driver[]
+
+  @@map("contractors")
+}
+
+model Driver {
+  id             String         @id @default(cuid())
+  contractorId   String         @map("contractor_id")
+  tenantId       String         @map("tenant_id")
+  name           String
+  nationalId     String         @map("national_id")
+  phone          String?
+  approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
+  notes          String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  trucks     Truck[]
+
+  @@unique([tenantId, nationalId])
+  @@map("drivers")
+}
+
+model Truck {
+  id          String      @id @default(cuid())
+  driverId    String?     @map("driver_id")
+  tenantId    String      @map("tenant_id")
+  plateNo     String      @map("plate_no")
+  capacityTons Float      @map("capacity_tons")
+  status      TruckStatus @default(IDLE)
+  missionId   String?     @map("mission_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  driver              Driver?               @relation(fields: [driverId], references: [id])
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mission             Mission?              @relation(fields: [missionId], references: [id])
+  fuelEvents          FuelEvent[]
+  holdingPointEvents  HoldingPointEvent[]
+  loadEvents          LoadEvent[]
+  exitEvents          ExitEvent[]
+  warehouseDeliveries WarehouseDelivery[]
+  maintenanceRecords  MaintenanceRecord[]
+  reconciliations     Reconciliation[]
+
+  @@unique([tenantId, plateNo])
+  @@map("trucks")
+}
+
+model FuelEvent {
+  id          String    @id @default(cuid())
+  truckId     String    @map("truck_id")
+  missionId   String?   @map("mission_id")
+  tenantId    String    @map("tenant_id")
+  liters      Float
+  stationName String    @map("station_name")
+  paidBy      PaymentBy @map("paid_by")
+  timestamp   DateTime  @default(now())
+  receiptUrl  String?   @map("receipt_url")
+
+  // Relations
+  truck   Truck    @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission? @relation(fields: [missionId], references: [id])
+  tenant  Tenant   @relation("TenantFuelEvents", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("fuel_events")
+}
+
+model HoldingPointEvent {
+  id        String   @id @default(cuid())
+  truckId   String   @map("truck_id")
+  missionId String   @map("mission_id")
+  tenantId  String   @map("tenant_id")
+  hpName    String   @map("hp_name") // HP1, HP2, etc.
+  arrivedAt DateTime @map("arrived_at")
+  leftAt    DateTime? @map("left_at")
+  notes     String?
+
+  // Relations
+  truck   Truck   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation("TenantHoldingPointEvents", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("holding_point_events")
+}
+
+model LoadEvent {
+  id            String   @id @default(cuid())
+  truckId       String   @map("truck_id")
+  missionId     String   @map("mission_id")
+  tenantId      String   @map("tenant_id")
+  orgName       String   @map("org_name")
+  cargoType     String   @map("cargo_type")
+  palletsLoaded Int      @map("pallets_loaded")
+  damagesNotes  String?  @map("damages_notes")
+  timestamp     DateTime @default(now())
+
+  // Relations
+  truck   Truck   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation("TenantLoadEvents", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("load_events")
+}
+
+model ExitEvent {
+  id        String   @id @default(cuid())
+  truckId   String   @map("truck_id")
+  missionId String   @map("mission_id")
+  tenantId  String   @map("tenant_id")
+  routeCode String   @map("route_code")
+  glExit    Boolean  @map("gl_exit") // Green Light approval
+  timestamp DateTime @default(now())
+
+  // Relations
+  truck   Truck   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation("TenantExitEvents", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("exit_events")
+}
+
+model WarehouseDelivery {
+  id              String    @id @default(cuid())
+  truckId         String    @map("truck_id")
+  missionId       String    @map("mission_id")
+  tenantId        String    @map("tenant_id")
+  warehouseName   String    @map("warehouse_name")
+  offloadedAt     DateTime  @map("offloaded_at")
+  palletsReceived Int       @map("pallets_received")
+  damageReport    String?   @map("damage_report")
+
+  // Relations
+  truck   Truck   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation("TenantWarehouseDeliveries", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("warehouse_deliveries")
+}
+
+model MaintenanceRecord {
+  id           String    @id @default(cuid())
+  truckId      String    @map("truck_id")
+  missionId    String?   @map("mission_id")
+  tenantId     String    @map("tenant_id")
+  reason       String
+  startedAt    DateTime  @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  notes        String?
+  costEstimate Float?    @map("cost_estimate")
+
+  // Relations
+  truck   Truck    @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission? @relation(fields: [missionId], references: [id])
+  tenant  Tenant   @relation("TenantMaintenanceRecords", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+model Reconciliation {
+  id        String    @id @default(cuid())
+  truckId   String    @map("truck_id")
+  missionId String    @map("mission_id")
+  tenantId  String    @map("tenant_id")
+  fuelTotal Float     @map("fuel_total")
+  pallets   Int
+  damages   String?
+  notes     String?
+  closedAt  DateTime  @map("closed_at")
+
+  // Relations
+  truck   Truck   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation("TenantReconciliations", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("reconciliations")
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  action      String
+  beforeJson  Json?    @map("before_json")
+  afterJson   Json?    @map("after_json")
+  byUser      String   @map("by_user")
+  at          DateTime @default(now())
+
+  // Relations
+  tenant Tenant @relation("TenantAuditEvents", fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("AuditUser", fields: [byUser], references: [id])
+
+  @@map("audit_events")
+}
+
+// Enums
+enum UserRole {
+  DISPATCHER
+  OPS_MANAGER
+  CONTRACTOR_FOCAL_POINT
+  MAINTENANCE
+  FINANCE_AUDIT
+}
+
+enum BorderType {
+  KS
+  ZIKIM
+  OTHER
+}
+
+enum MissionStatus {
+  CREATED
+  ACTIVE
+  COMPLETED
+  RECONCILED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum TruckStatus {
+  IDLE
+  DISPATCHED
+  FUELING_REQUESTED
+  FUELED
+  HP1_WAIT
+  HP2_WAIT
+  LOADING_PREP
+  LOADED
+  EXITING
+  DELIVERED
+  RECONCILED
+  MAINTENANCE
+  LOOTED
+}
+
+enum PaymentBy {
+  COMPANY
+  DRIVER_SELF
+}

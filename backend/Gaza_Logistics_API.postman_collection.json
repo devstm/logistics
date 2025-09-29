@@ -1,0 +1,1761 @@
+{
+  "info": {
+    "name": "Gaza Humanitarian Logistics API",
+    "description": "Complete API collection for Gaza humanitarian logistics workflow management system with multi-tenant support, role-based access control, and comprehensive audit logging.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set base URL",
+          "pm.environment.set('base_url', 'http://localhost:8080');"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Checks",
+      "description": "System health and status endpoints",
+      "item": [
+        {
+          "name": "App Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check overall application health"
+          },
+          "response": []
+        },
+        {
+          "name": "Gaza API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "health"]
+            },
+            "description": "Check Gaza logistics API health"
+          },
+          "response": []
+        },
+        {
+          "name": "User API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "health"]
+            },
+            "description": "Check user API health"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication & User Management",
+      "description": "User registration, login, and profile management",
+      "item": [
+        {
+          "name": "Register New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    console.log('User registered successfully:', response.user.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@gaza-logistics.org\",\n  \"name\": \"Test User\",\n  \"password\": \"TestPassword123\",\n  \"role\": \"DISPATCHER\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "register"]
+            },
+            "description": "Register a new user in the system"
+          },
+          "response": []
+        },
+        {
+          "name": "🔑 Login - Dispatcher",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('auth_token', response.token);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    pm.environment.set('tenant_id', response.user.tenantId);",
+                  "    console.log('Login successful for:', response.user.email);",
+                  "    console.log('Role:', response.user.role);",
+                  "    console.log('Tenant:', response.user.tenant.name);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"dispatcher@gaza-logistics.org\",\n  \"password\": \"dispatcher123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "login"]
+            },
+            "description": "Login as dispatcher role"
+          },
+          "response": []
+        },
+        {
+          "name": "🔑 Login - Ops Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('ops_token', response.token);",
+                  "    pm.environment.set('ops_user_id', response.user.id);",
+                  "    console.log('Ops Manager login successful');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ops@gaza-logistics.org\",\n  \"password\": \"ops123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "login"]
+            },
+            "description": "Login as operations manager"
+          },
+          "response": []
+        },
+        {
+          "name": "🔑 Login - Contractor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('contractor_token', response.token);",
+                  "    console.log('Contractor login successful');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"contractor@gaza-logistics.org\",\n  \"password\": \"contractor123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "login"]
+            },
+            "description": "Login as contractor focal point"
+          },
+          "response": []
+        },
+        {
+          "name": "👤 Get User Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            },
+            "description": "Get current user's profile information"
+          },
+          "response": []
+        },
+        {
+          "name": "👥 Get All Users (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ""]
+            },
+            "description": "Get all users (requires OPS_MANAGER or FINANCE_AUDIT role)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🚛 Driver Management",
+      "description": "Driver registration, approval, and management workflows",
+      "item": [
+        {
+          "name": "➕ Create Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('driver_id', response.driver.id);",
+                  "    console.log('Driver created:', response.driver.name);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahmad Hassan Khalil\",\n  \"nationalId\": \"987654321\",\n  \"phone\": \"+970-59-987-6543\",\n  \"contractorId\": \"gaza-transport-co\",\n  \"licenseNumber\": \"GZ-DRV-2024-001\",\n  \"licenseExpiry\": \"2025-12-31T00:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers"]
+            },
+            "description": "Register a new driver in the system"
+          },
+          "response": []
+        },
+        {
+          "name": "📋 Get All Drivers",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers"]
+            },
+            "description": "Get all drivers for current tenant"
+          },
+          "response": []
+        },
+        {
+          "name": "🔍 Get Driver by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/{{driver_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "{{driver_id}}"]
+            },
+            "description": "Get specific driver details"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Approve Driver (Ops Manager Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvalStatus\": \"APPROVED\",\n  \"notes\": \"Driver documentation verified and approved for Gaza operations\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/{{driver_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "{{driver_id}}", "approve"]
+            },
+            "description": "Approve driver for operations (requires OPS_MANAGER role)"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Deny Driver (Ops Manager Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvalStatus\": \"DENIED\",\n  \"notes\": \"Incomplete documentation - missing medical certificate\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/{{driver_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "{{driver_id}}", "approve"]
+            },
+            "description": "Deny driver approval with reason"
+          },
+          "response": []
+        },
+        {
+          "name": "📊 Get Driver Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "stats"]
+            },
+            "description": "Get driver statistics and metrics"
+          },
+          "response": []
+        },
+        {
+          "name": "📝 Bulk Import Drivers (CSV)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "drivers",
+                  "type": "file",
+                  "src": "drivers.csv",
+                  "description": "CSV file with driver data"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/bulk-import",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "bulk-import"]
+            },
+            "description": "Bulk import drivers from CSV file"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Bulk Approve Drivers",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverIds\": [\"driver-id-1\", \"driver-id-2\", \"driver-id-3\"],\n  \"approvalStatus\": \"APPROVED\",\n  \"notes\": \"Batch approval for emergency response team\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/bulk-approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "bulk-approve"]
+            },
+            "description": "Approve multiple drivers at once"
+          },
+          "response": []
+        },
+        {
+          "name": "✏️ Update Driver",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahmad Hassan Khalil (Updated)\",\n  \"phone\": \"+970-59-987-6544\",\n  \"licenseExpiry\": \"2026-12-31T00:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/{{driver_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "{{driver_id}}"]
+            },
+            "description": "Update driver information"
+          },
+          "response": []
+        },
+        {
+          "name": "🗑️ Delete Driver (Ops Manager Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/{{driver_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "{{driver_id}}"]
+            },
+            "description": "Delete driver from system (requires OPS_MANAGER role)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🚚 Truck Management",
+      "description": "Truck registration, assignment, and status management",
+      "item": [
+        {
+          "name": "➕ Create Truck",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('truck_id', response.truck.id);",
+                  "    console.log('Truck created:', response.truck.plateNo);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plateNo\": \"GZ-TEST-001\",\n  \"capacityTons\": 15.5,\n  \"driverId\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks"]
+            },
+            "description": "Register a new truck in the system"
+          },
+          "response": []
+        },
+        {
+          "name": "📋 Get All Trucks",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks"]
+            },
+            "description": "Get all trucks for current tenant"
+          },
+          "response": []
+        },
+        {
+          "name": "🔍 Get Truck by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}"]
+            },
+            "description": "Get specific truck details with driver information"
+          },
+          "response": []
+        },
+        {
+          "name": "📊 Get Truck Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "stats"]
+            },
+            "description": "Get truck fleet statistics and metrics"
+          },
+          "response": []
+        },
+        {
+          "name": "✏️ Update Truck",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plateNo\": \"GZ-TEST-001-UPD\",\n  \"capacityTons\": 16.0,\n  \"driverId\": \"{{driver_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}"]
+            },
+            "description": "Update truck information and assign driver"
+          },
+          "response": []
+        },
+        {
+          "name": "🔄 Update Truck Status - DISPATCHED",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DISPATCHED\",\n  \"notes\": \"Truck dispatched for food delivery mission to northern Gaza\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}", "status"]
+            },
+            "description": "Update truck status to dispatched"
+          },
+          "response": []
+        },
+        {
+          "name": "⛽ Update Truck Status - FUELED",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"FUELED\",\n  \"notes\": \"Truck refueled and ready for mission\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}", "status"]
+            },
+            "description": "Update truck status to fueled"
+          },
+          "response": []
+        },
+        {
+          "name": "🚛 Update Truck Status - EN_ROUTE",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"EN_ROUTE\",\n  \"notes\": \"Truck departed and en route to delivery location\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}", "status"]
+            },
+            "description": "Update truck status to en route"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Update Truck Status - DELIVERED",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\",\n  \"notes\": \"Delivery completed successfully at destination\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}", "status"]
+            },
+            "description": "Update truck status to delivered"
+          },
+          "response": []
+        },
+        {
+          "name": "🔧 Update Truck Status - MAINTENANCE",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"MAINTENANCE\",\n  \"notes\": \"Truck requires maintenance - engine service needed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}", "status"]
+            },
+            "description": "Update truck status to maintenance"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Approve Truck (Ops Manager)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Truck inspection completed and approved for operations\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}", "approve"]
+            },
+            "description": "Approve truck for operations (requires OPS_MANAGER role)"
+          },
+          "response": []
+        },
+        {
+          "name": "🗑️ Delete Truck (Ops Manager)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ops_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/trucks/{{truck_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "trucks", "{{truck_id}}"]
+            },
+            "description": "Delete truck from system (requires OPS_MANAGER role)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎯 Gaza Workflow Scenarios",
+      "description": "Complete end-to-end Gaza humanitarian logistics workflows",
+      "item": [
+        {
+          "name": "📝 Scenario 1: Emergency Food Distribution",
+          "description": "Complete workflow for emergency food distribution to northern Gaza",
+          "item": [
+            {
+              "name": "Step 1: Login as Dispatcher",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    pm.environment.set('dispatcher_token', response.token);",
+                      "    console.log('✅ Dispatcher logged in successfully');",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"dispatcher@gaza-logistics.org\",\n  \"password\": \"dispatcher123\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/users/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "users", "login"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 2: Check Available Drivers",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/drivers?status=APPROVED",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "drivers"],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "APPROVED"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 3: Check Available Trucks",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks?status=IDLE",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks"],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "IDLE"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 4: Assign Driver to Truck",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"driverId\": \"REPLACE_WITH_AVAILABLE_DRIVER_ID\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 5: Dispatch Truck",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"DISPATCHED\",\n  \"notes\": \"Emergency food distribution mission - Northern Gaza via KS Border\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "⛽ Scenario 2: Fueling Process",
+          "description": "Truck fueling workflow at designated stations",
+          "item": [
+            {
+              "name": "Update Status: Arrived at Fuel Station",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"AT_FUEL_STATION\",\n  \"notes\": \"Truck arrived at designated fueling station\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: Fueling Completed",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"FUELED\",\n  \"notes\": \"Fueling completed - 200L diesel, ready for HP1 gate\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "🚪 Scenario 3: Border Gate Processing",
+          "description": "HP1 and HP2 gate processing workflows",
+          "item": [
+            {
+              "name": "Update Status: At HP1 Gate",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"AT_HP1_GATE\",\n  \"notes\": \"Truck arrived at HP1 gate for security check\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: HP1 Cleared",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"HP1_CLEARED\",\n  \"notes\": \"Security check completed, proceeding to HP2\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: At HP2 Gate",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"AT_HP2_GATE\",\n  \"notes\": \"Truck at HP2 gate for final clearance\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: HP2 Cleared",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"HP2_CLEARED\",\n  \"notes\": \"Final clearance obtained, entering Gaza territory\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "📦 Scenario 4: Loading and Delivery",
+          "description": "Cargo loading and final delivery workflows",
+          "item": [
+            {
+              "name": "Update Status: At Loading Point",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"AT_LOADING_POINT\",\n  \"notes\": \"Truck at designated loading point for cargo pickup\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: Loading Completed",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"LOADED\",\n  \"notes\": \"15 tons of food supplies loaded, departing for delivery\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: En Route",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"EN_ROUTE\",\n  \"notes\": \"Truck en route to northern Gaza distribution center\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: Delivered",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"DELIVERED\",\n  \"notes\": \"Delivery completed at northern Gaza distribution center - 15 tons food supplies delivered\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "🔄 Scenario 5: Return and Reconciliation",
+          "description": "Post-delivery return and reconciliation workflows",
+          "item": [
+            {
+              "name": "Update Status: Returning",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"RETURNING\",\n  \"notes\": \"Truck returning to base after successful delivery\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Status: Mission Complete",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"IDLE\",\n  \"notes\": \"Mission completed successfully - truck returned to base and available for next assignment\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/REPLACE_WITH_TRUCK_ID/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "REPLACE_WITH_TRUCK_ID", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Mission Statistics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{dispatcher_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/gaza/trucks/stats",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "gaza", "trucks", "stats"]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Handling & Edge Cases",
+      "description": "Test error scenarios and edge cases",
+      "item": [
+        {
+          "name": "401 - Missing Authorization Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers"]
+            },
+            "description": "Test unauthorized access without token"
+          },
+          "response": []
+        },
+        {
+          "name": "403 - Invalid Authorization Token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid-token-123",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers"]
+            },
+            "description": "Test access with invalid token"
+          },
+          "response": []
+        },
+        {
+          "name": "403 - Insufficient Role Permissions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/some-driver-id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "some-driver-id"]
+            },
+            "description": "Test role-based access control (contractor trying to delete)"
+          },
+          "response": []
+        },
+        {
+          "name": "400 - Invalid Request Data",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"nationalId\": \"123\",\n  \"contractorId\": \"invalid-uuid\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers"]
+            },
+            "description": "Test validation errors for invalid data"
+          },
+          "response": []
+        },
+        {
+          "name": "404 - Resource Not Found",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gaza/drivers/non-existent-id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaza", "drivers", "non-existent-id"]
+            },
+            "description": "Test accessing non-existent resource"
+          },
+          "response": []
+        },
+        {
+          "name": "409 - Duplicate Resource",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"dispatcher@gaza-logistics.org\",\n  \"name\": \"Duplicate User\",\n  \"password\": \"TestPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "register"]
+            },
+            "description": "Test duplicate email registration"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
