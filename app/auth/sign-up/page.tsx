@@ -1,7 +1,11 @@
-'use client';
+import { SignUpForm } from "@/components/sign-up-form";
 
-import { RegisterForm } from '../../../components/auth/register-form';
-
-export default function SignUpPage() {
-  return <RegisterForm />;
+export default function Page() {
+  return (
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <SignUpForm />
+      </div>
+    </div>
+  );
 }
