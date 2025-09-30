@@ -40,27 +40,27 @@ router.get('/',
   driverController.getDrivers.bind(driverController)
 );
 
-// Get driver by ID
-router.get('/:id', 
-  driverController.getDriver.bind(driverController)
-);
-
-// Approve driver (Ops Manager only)
-router.post('/:id/approve', 
-  requireRole(['OPS_MANAGER']), 
-  driverController.approveDriver.bind(driverController)
+// Get driver statistics (must be before /:id route)
+router.get('/stats',
+  requireRole(['DISPATCHER', 'OPS_MANAGER', 'FINANCE_AUDIT']),
+  driverController.getDriverStats.bind(driverController)
 );
 
 // Bulk approve drivers
-router.post('/bulk-approve', 
+router.post('/bulk-approve',
   requireRole(['OPS_MANAGER']),
   driverController.bulkApproveDrivers.bind(driverController)
 );
 
-// Get driver statistics
-router.get('/stats', 
-  requireRole(['DISPATCHER', 'OPS_MANAGER', 'FINANCE_AUDIT']),
-  driverController.getDriverStats.bind(driverController)
+// Get driver by ID
+router.get('/:id',
+  driverController.getDriver.bind(driverController)
+);
+
+// Approve driver (Ops Manager only)
+router.post('/:id/approve',
+  requireRole(['OPS_MANAGER']),
+  driverController.approveDriver.bind(driverController)
 );
 
 // Update driver details

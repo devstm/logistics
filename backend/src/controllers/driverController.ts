@@ -10,6 +10,14 @@ interface AuthenticatedRequest extends Request {
   tenantName?: string;
 }
 
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+  type?: string;
+}
+
 export class DriverController {
   private driverService: DriverService;
   private auditService: AuditService;
@@ -27,41 +35,82 @@ export class DriverController {
       };
       const userId = req.userId!;
 
+      if (!userId || !req.tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
       const driver = await this.driverService.createDriver(driverData, userId);
-      
+
       res.status(201).json({
         success: true,
-        data: driver
+        data: driver,
+        message: 'Driver created successfully'
       });
     } catch (error) {
-      console.error('Error creating driver:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'creating driver');
     }
   }
 
   async getDrivers(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const tenantId = req.tenantId!;
-      const { status } = req.query;
+      const { status, page = '1', limit = '50', search } = req.query;
 
-      const drivers = await this.driverService.getDriversByTenant(
+      if (!tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
+
+      if (isNaN(pageNum) || pageNum < 1 || isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid pagination parameters',
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      const result = await this.driverService.getDriversByTenant(
         tenantId,
-        status as ApprovalStatus
+        {
+          status: status as ApprovalStatus,
+          page: pageNum,
+          limit: limitNum,
+          search: search as string
+        }
       );
-      
-      res.json({
-        success: true,
-        data: drivers
-      });
+
+      if (Array.isArray(result)) {
+        res.json({
+          success: true,
+          data: result
+        });
+      } else {
+        res.json({
+          success: true,
+          data: result.drivers,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: result.total,
+            totalPages: Math.ceil(result.total / limitNum)
+          }
+        });
+      }
     } catch (error) {
-      console.error('Error fetching drivers:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'fetching drivers');
     }
   }
 
@@ -70,12 +119,31 @@ export class DriverController {
       const { id } = req.params;
       const tenantId = req.tenantId!;
 
+      if (!tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
+      if (!id || id.trim() === '') {
+        res.status(400).json({
+          success: false,
+          error: 'Driver ID is required',
+          type: 'validation_error'
+        });
+        return;
+      }
+
       const driver = await this.driverService.getDriverById(id, tenantId);
-      
+
       if (!driver) {
         res.status(404).json({
           success: false,
-          error: 'Driver not found'
+          error: 'Driver not found',
+          type: 'not_found_error'
         });
         return;
       }
@@ -85,11 +153,7 @@ export class DriverController {
         data: driver
       });
     } catch (error) {
-      console.error('Error fetching driver:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'fetching driver');
     }
   }
 
@@ -100,50 +164,90 @@ export class DriverController {
       const tenantId = req.tenantId!;
       const userId = req.userId!;
 
+      if (!userId || !tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
+      if (!id || id.trim() === '') {
+        res.status(400).json({
+          success: false,
+          error: 'Driver ID is required',
+          type: 'validation_error'
+        });
+        return;
+      }
+
       const updatedDriver = await this.driverService.updateDriver(
         id,
         tenantId,
         updateData,
         userId
       );
-      
+
       res.json({
         success: true,
-        data: updatedDriver
+        data: updatedDriver,
+        message: 'Driver updated successfully'
       });
     } catch (error) {
-      console.error('Error updating driver:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'updating driver');
     }
   }
 
   async approveDriver(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { notes } = req.body;
+      const { status, notes } = req.body;
       const tenantId = req.tenantId!;
       const userId = req.userId!;
 
-      const updatedDriver = await this.driverService.approveDriver(
+      if (!userId || !tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
+      if (!id || id.trim() === '') {
+        res.status(400).json({
+          success: false,
+          error: 'Driver ID is required',
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      if (!status || !Object.values(ApprovalStatus).includes(status)) {
+        res.status(400).json({
+          success: false,
+          error: 'Valid approval status is required (APPROVED, DENIED, PENDING)',
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      const updatedDriver = await this.driverService.updateDriverApprovalStatus(
         id,
         tenantId,
         userId,
+        status,
         notes
       );
-      
+
       res.json({
         success: true,
-        data: updatedDriver
+        data: updatedDriver,
+        message: `Driver ${status.toLowerCase()} successfully`
       });
     } catch (error) {
-      console.error('Error approving driver:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'updating driver approval status');
     }
   }
 
@@ -153,16 +257,35 @@ export class DriverController {
       const tenantId = req.tenantId!;
       const userId = req.userId!;
 
+      if (!userId || !tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
       if (!Array.isArray(drivers) || drivers.length === 0) {
         res.status(400).json({
           success: false,
-          error: 'Invalid drivers data'
+          error: 'Invalid drivers data - must be a non-empty array',
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      if (drivers.length > 1000) {
+        res.status(400).json({
+          success: false,
+          error: 'Too many drivers - maximum 1000 per import',
+          type: 'validation_error'
         });
         return;
       }
 
       const results = await this.driverService.importDrivers(drivers, tenantId, userId);
-      
+
       await this.auditService.logEvent({
         tenantId,
         byUser: userId,
@@ -171,17 +294,14 @@ export class DriverController {
         entityId: 'bulk',
         afterJson: { imported: results.imported, errors: results.errors }
       });
-      
+
       res.json({
         success: true,
-        data: results
+        data: results,
+        message: `Successfully imported ${results.imported} drivers${results.errors.length > 0 ? ` with ${results.errors.length} errors` : ''}`
       });
     } catch (error) {
-      console.error('Error bulk importing drivers:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'bulk importing drivers');
     }
   }
 
@@ -191,26 +311,42 @@ export class DriverController {
       const tenantId = req.tenantId!;
       const userId = req.userId!;
 
-      if (!Array.isArray(driverIds) || driverIds.length === 0) {
-        res.status(400).json({
+      if (!userId || !tenantId) {
+        res.status(401).json({
           success: false,
-          error: 'Invalid driver IDs'
+          error: 'Authentication required',
+          type: 'auth_error'
         });
         return;
       }
 
-      await this.driverService.bulkApproveDrivers(driverIds, tenantId, userId);
-      
+      if (!Array.isArray(driverIds) || driverIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid driver IDs - must be a non-empty array',
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      if (driverIds.length > 100) {
+        res.status(400).json({
+          success: false,
+          error: 'Too many drivers - maximum 100 per bulk operation',
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      const results = await this.driverService.bulkApproveDrivers(driverIds, tenantId, userId);
+
       res.json({
         success: true,
-        message: `Approved ${driverIds.length} drivers`
+        data: results,
+        message: `Successfully processed ${driverIds.length} drivers`
       });
     } catch (error) {
-      console.error('Error bulk approving drivers:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'bulk approving drivers');
     }
   }
 
@@ -220,18 +356,32 @@ export class DriverController {
       const tenantId = req.tenantId!;
       const userId = req.userId!;
 
+      if (!userId || !tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
+      if (!driverId || driverId.trim() === '') {
+        res.status(400).json({
+          success: false,
+          error: 'Driver ID is required',
+          type: 'validation_error'
+        });
+        return;
+      }
+
       await this.driverService.deleteDriver(driverId, tenantId, userId);
-      
+
       res.json({
         success: true,
         message: 'Driver deleted successfully'
       });
     } catch (error) {
-      console.error('Error deleting driver:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'deleting driver');
     }
   }
 
@@ -239,28 +389,71 @@ export class DriverController {
     try {
       const tenantId = req.tenantId!;
 
-      // Simple stats from existing methods
-      const approved = await this.driverService.getDriversByTenant(tenantId, 'APPROVED');
-      const pending = await this.driverService.getDriversByTenant(tenantId, 'PENDING');
-      const denied = await this.driverService.getDriversByTenant(tenantId, 'DENIED');
-      
-      const stats = {
-        total: approved.length + pending.length + denied.length,
-        approved: approved.length,
-        pending: pending.length,
-        denied: denied.length
-      };
-      
+      if (!tenantId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          type: 'auth_error'
+        });
+        return;
+      }
+
+      const stats = await this.driverService.getDriverStatistics(tenantId);
+
       res.json({
         success: true,
         data: stats
       });
     } catch (error) {
-      console.error('Error fetching driver stats:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
+      this.handleError(res, error, 'fetching driver statistics');
     }
+  }
+
+  private handleError(res: Response, error: unknown, context: string): void {
+    console.error(`Error ${context}:`, error);
+
+    if (error instanceof Error) {
+      if (error.message.includes('Validation failed:')) {
+        res.status(400).json({
+          success: false,
+          error: error.message.replace('Validation failed: ', ''),
+          type: 'validation_error'
+        });
+        return;
+      }
+
+      if (error.message.includes('already exists')) {
+        res.status(409).json({
+          success: false,
+          error: error.message,
+          type: 'duplicate_error'
+        });
+        return;
+      }
+
+      if (error.message.includes('not found')) {
+        res.status(404).json({
+          success: false,
+          error: error.message,
+          type: 'not_found_error'
+        });
+        return;
+      }
+
+      if (error.message.includes('associated trucks')) {
+        res.status(409).json({
+          success: false,
+          error: error.message,
+          type: 'constraint_error'
+        });
+        return;
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+      type: 'server_error'
+    });
   }
 }

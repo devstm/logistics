@@ -111,7 +111,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 flex h-14 items-center">
           {/* Logo and Mobile Menu Button */}
           <div className="flex items-center space-x-4">
             <Button
@@ -210,7 +210,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-b bg-background">
-          <nav className="container py-2">
+          <nav className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-2">
             {availableNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -234,7 +234,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       )}
 
       {/* Main Content */}
-      <main className="container py-6">
+      <main className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
     </div>
