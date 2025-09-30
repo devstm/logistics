@@ -102,6 +102,8 @@ model Driver {
   name           String
   nationalId     String         @map("national_id")
   phone          String?
+  licenseNumber  String?        @map("license_number")
+  licenseExpiry  DateTime?      @map("license_expiry")
   approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
   notes          String?
   createdAt      DateTime       @default(now()) @map("created_at")

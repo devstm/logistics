@@ -85,9 +85,16 @@ class ApiClient {
 
   // Drivers
   async getDrivers() {
-    const response = await this.request<{ success?: boolean; data?: unknown }>('/api/gaza/drivers');
-    // Backend returns { success: true, data: drivers }, extract the drivers array
-    return response.data || response;
+    try {
+      const response = await this.request<{ success?: boolean; data?: unknown }>('/api/gaza/drivers');
+      console.log('getDrivers response:', response);
+      // Backend returns { success: true, data: drivers }, extract the drivers array
+      return response.data || response;
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
+      // Return empty array instead of throwing to prevent app crash
+      return [];
+    }
   }
 
   async createDriver(driverData: DriverForm) {
@@ -118,7 +125,15 @@ class ApiClient {
   }
 
   async getDriverStats() {
-    return this.request('/api/gaza/drivers/stats');
+    try {
+      const response = await this.request('/api/gaza/drivers/stats');
+      console.log('getDriverStats response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error fetching driver stats:', error);
+      // Return null to indicate stats are not available
+      return null;
+    }
   }
 
   async bulkImportDrivers(formData: FormData) {

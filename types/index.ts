@@ -26,6 +26,8 @@ export interface Driver {
   name: string;
   nationalId: string;
   phone?: string;
+  licenseNumber?: string;
+  licenseExpiry?: string;
   approvalStatus: ApprovalStatus;
   notes?: string;
   createdAt: string;
