@@ -14,11 +14,6 @@ const validateDriver = [
   body('contractorId').isUUID().withMessage('Invalid contractor ID'),
 ];
 
-const validateDriverApproval = [
-  body('approvalStatus').isIn(['APPROVED', 'DENIED']).withMessage('Status must be APPROVED or DENIED'),
-  body('notes').optional().isLength({ max: 500 }).withMessage('Notes must not exceed 500 characters'),
-];
-
 // Apply tenant isolation to all routes
 router.use(requireTenantAccess);
 
@@ -40,27 +35,15 @@ router.get('/',
   driverController.getDrivers.bind(driverController)
 );
 
-// Get driver by ID
-router.get('/:id', 
-  driverController.getDriver.bind(driverController)
-);
-
-// Approve driver (Ops Manager only)
-router.post('/:id/approve', 
-  requireRole(['OPS_MANAGER']), 
-  driverController.approveDriver.bind(driverController)
-);
-
-// Bulk approve drivers
-router.post('/bulk-approve', 
-  requireRole(['OPS_MANAGER']),
-  driverController.bulkApproveDrivers.bind(driverController)
-);
-
-// Get driver statistics
-router.get('/stats', 
+// Get driver statistics (must be before /:id route)
+router.get('/stats',
   requireRole(['DISPATCHER', 'OPS_MANAGER', 'FINANCE_AUDIT']),
   driverController.getDriverStats.bind(driverController)
+);
+
+// Get driver by ID
+router.get('/:id',
+  driverController.getDriver.bind(driverController)
 );
 
 // Update driver details

@@ -1,4 +1,4 @@
-import { Driver, ApprovalStatus, Contractor } from '@prisma/client';
+import { Driver, Contractor } from '@prisma/client';
 import { prisma } from '../database';
 import { AuditService } from './auditService';
 
@@ -8,13 +8,16 @@ export interface CreateDriverData {
   name: string;
   nationalId: string;
   phone?: string;
+  licenseNumber?: string;
+  licenseExpiry?: string;
   notes?: string;
 }
 
 export interface UpdateDriverData {
   name?: string;
   phone?: string;
-  approvalStatus?: ApprovalStatus;
+  licenseNumber?: string;
+  licenseExpiry?: string;
   notes?: string;
 }
 
@@ -29,6 +32,18 @@ export interface DriverImportData {
   contractorName: string;
 }
 
+export interface DriverFilters {
+  contractorId?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface DriverSearchResult {
+  drivers: DriverWithContractor[];
+  total: number;
+}
+
 export class DriverService {
   private auditService: AuditService;
 
@@ -36,28 +51,104 @@ export class DriverService {
     this.auditService = new AuditService();
   }
 
+  private validateDriverData(data: CreateDriverData): string[] {
+    const errors: string[] = [];
+
+    // Required field validation
+    if (!data.name?.trim()) {
+      errors.push('Driver name is required');
+    } else if (data.name.trim().length < 2) {
+      errors.push('Driver name must be at least 2 characters long');
+    } else if (data.name.trim().length > 100) {
+      errors.push('Driver name must be less than 100 characters');
+    }
+
+    if (!data.nationalId?.trim()) {
+      errors.push('National ID is required');
+    } else if (!/^\d{9}$/.test(data.nationalId.trim())) {
+      errors.push('National ID must be exactly 9 digits');
+    }
+
+    if (!data.contractorId?.trim()) {
+      errors.push('Contractor is required');
+    }
+
+    // Optional field validation
+    if (data.phone && data.phone.trim()) {
+      const phoneRegex = /^(\+970|0)(5[0-9]|59)\d{7}$/;
+      if (!phoneRegex.test(data.phone.trim())) {
+        errors.push('Phone number must be a valid Palestinian mobile number (e.g., +970-59-123-4567 or 059-123-4567)');
+      }
+    }
+
+    if (data.licenseNumber && data.licenseNumber.trim()) {
+      if (data.licenseNumber.trim().length < 3 || data.licenseNumber.trim().length > 20) {
+        errors.push('License number must be between 3 and 20 characters');
+      }
+    }
+
+    if (data.licenseExpiry && data.licenseExpiry.trim()) {
+      const expiryDate = new Date(data.licenseExpiry);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (isNaN(expiryDate.getTime())) {
+        errors.push('Invalid license expiry date format');
+      } else if (expiryDate < today) {
+        errors.push('License expiry date cannot be in the past');
+      }
+    }
+
+    return errors;
+  }
+
   async createDriver(data: CreateDriverData, userId: string): Promise<Driver> {
+    // Validate input data
+    const validationErrors = this.validateDriverData(data);
+    if (validationErrors.length > 0) {
+      throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+    }
+
+    // Verify contractor exists and belongs to tenant
+    const contractor = await prisma.contractor.findFirst({
+      where: {
+        id: data.contractorId,
+        tenantId: data.tenantId,
+      },
+    });
+
+    if (!contractor) {
+      throw new Error('Selected contractor not found or does not belong to your organization');
+    }
+
     // Check if driver with same national ID already exists for this tenant
     const existingDriver = await prisma.driver.findFirst({
       where: {
         tenantId: data.tenantId,
-        nationalId: data.nationalId,
+        nationalId: data.nationalId.trim(),
       },
     });
 
     if (existingDriver) {
-      throw new Error(`Driver with National ID ${data.nationalId} already exists`);
+      throw new Error(`Driver with National ID ${data.nationalId.trim()} already exists`);
     }
 
+    // Prepare clean data
+    const cleanData = {
+      contractorId: data.contractorId,
+      tenantId: data.tenantId,
+      name: data.name.trim(),
+      nationalId: data.nationalId.trim(),
+      phone: data.phone?.trim() || null,
+      licenseNumber: data.licenseNumber?.trim() || null,
+      licenseExpiry: data.licenseExpiry?.trim() ? new Date(data.licenseExpiry.trim()) : null,
+      notes: data.notes?.trim() || null,
+    };
+
     const driver = await prisma.driver.create({
-      data: {
-        contractorId: data.contractorId,
-        tenantId: data.tenantId,
-        name: data.name,
-        nationalId: data.nationalId,
-        phone: data.phone,
-        notes: data.notes,
-        approvalStatus: 'PENDING',
+      data: cleanData,
+      include: {
+        contractor: true,
       },
     });
 
@@ -74,12 +165,58 @@ export class DriverService {
     return driver;
   }
 
-  async getDriversByTenant(tenantId: string, approvalStatus?: ApprovalStatus): Promise<DriverWithContractor[]> {
+  async getDriversByTenant(
+    tenantId: string,
+    filters?: DriverFilters
+  ): Promise<DriverWithContractor[] | DriverSearchResult> {
     const whereClause: any = { tenantId };
-    if (approvalStatus) {
-      whereClause.approvalStatus = approvalStatus;
+
+    if (filters?.contractorId) {
+      whereClause.contractorId = filters.contractorId;
     }
 
+    if (filters?.search) {
+      const searchTerm = filters.search.toLowerCase();
+      whereClause.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { nationalId: { contains: searchTerm } },
+        { phone: { contains: searchTerm } },
+        {
+          contractor: {
+            name: { contains: searchTerm, mode: 'insensitive' }
+          }
+        }
+      ];
+    }
+
+    // If pagination is requested, return paginated result
+    if (filters?.page !== undefined || filters?.limit !== undefined) {
+      const page = filters.page || 1;
+      const limit = filters.limit || 50;
+      const skip = (page - 1) * limit;
+
+      const [drivers, total] = await Promise.all([
+        prisma.driver.findMany({
+          where: whereClause,
+          include: {
+            contractor: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.driver.count({
+          where: whereClause,
+        }),
+      ]);
+
+      return {
+        drivers: drivers as DriverWithContractor[],
+        total,
+      };
+    }
+
+    // Default behavior - return all drivers
     return await prisma.driver.findMany({
       where: whereClause,
       include: {
@@ -126,9 +263,7 @@ export class DriverService {
       tenantId,
       entityType: 'Driver',
       entityId: id,
-      action: data.approvalStatus ? 
-        (data.approvalStatus === 'APPROVED' ? 'APPROVE' : 'DENY') : 
-        'UPDATE',
+      action: 'UPDATE',
       beforeJson: beforeDriver,
       afterJson: updatedDriver,
       byUser: userId,
@@ -137,47 +272,6 @@ export class DriverService {
     return updatedDriver;
   }
 
-  async approveDriver(id: string, tenantId: string, userId: string, notes?: string): Promise<Driver> {
-    return await this.updateDriver(id, tenantId, {
-      approvalStatus: 'APPROVED',
-      notes: notes || 'Driver approved for missions',
-    }, userId);
-  }
-
-  async denyDriver(id: string, tenantId: string, userId: string, reason: string): Promise<Driver> {
-    return await this.updateDriver(id, tenantId, {
-      approvalStatus: 'DENIED',
-      notes: reason,
-    }, userId);
-  }
-
-  async bulkApproveDrivers(driverIds: string[], tenantId: string, userId: string): Promise<void> {
-    await prisma.$transaction(async (tx) => {
-      for (const driverId of driverIds) {
-        const beforeDriver = await tx.driver.findFirst({
-          where: { id: driverId, tenantId },
-        });
-
-        if (beforeDriver) {
-          const updatedDriver = await tx.driver.update({
-            where: { id: driverId },
-            data: { approvalStatus: 'APPROVED' },
-          });
-
-          // Log audit event
-          await this.auditService.logEvent({
-            tenantId,
-            entityType: 'Driver',
-            entityId: driverId,
-            action: 'BULK_APPROVE',
-            beforeJson: beforeDriver,
-            afterJson: updatedDriver,
-            byUser: userId,
-          });
-        }
-      }
-    });
-  }
 
   async importDrivers(
     driversData: DriverImportData[],
@@ -230,7 +324,6 @@ export class DriverService {
               name: driverData.name,
               nationalId: driverData.nationalId,
               phone: driverData.phone,
-              approvalStatus: 'PENDING',
             },
           });
 
@@ -257,15 +350,9 @@ export class DriverService {
   async getDriverStatistics(tenantId: string) {
     const [
       totalDrivers,
-      approvedDrivers,
-      pendingDrivers,
-      deniedDrivers,
       driversByContractor
     ] = await Promise.all([
       prisma.driver.count({ where: { tenantId } }),
-      prisma.driver.count({ where: { tenantId, approvalStatus: 'APPROVED' } }),
-      prisma.driver.count({ where: { tenantId, approvalStatus: 'PENDING' } }),
-      prisma.driver.count({ where: { tenantId, approvalStatus: 'DENIED' } }),
       prisma.driver.groupBy({
         by: ['contractorId'],
         where: { tenantId },
@@ -275,9 +362,6 @@ export class DriverService {
 
     return {
       total: totalDrivers,
-      approved: approvedDrivers,
-      pending: pendingDrivers,
-      denied: deniedDrivers,
       byContractor: driversByContractor.map((item: any) => ({
         contractorId: item.contractorId,
         count: item._count.contractorId,

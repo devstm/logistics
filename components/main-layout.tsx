@@ -38,6 +38,12 @@ const navigationItems = [
     roles: [UserRole.DISPATCHER, UserRole.OPS_MANAGER, UserRole.CONTRACTOR_FOCAL_POINT, UserRole.MAINTENANCE, UserRole.FINANCE_AUDIT],
   },
   {
+    title: 'My Assignment',
+    href: '/driver-dashboard',
+    icon: Truck,
+    roles: [UserRole.DRIVER],
+  },
+  {
     title: 'Drivers',
     href: '/drivers',
     icon: Users,
@@ -102,6 +108,8 @@ export function MainLayout({ children }: MainLayoutProps) {
         return 'destructive';
       case UserRole.FINANCE_AUDIT:
         return 'secondary';
+      case UserRole.DRIVER:
+        return 'outline';
       default:
         return 'outline';
     }
@@ -111,7 +119,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 flex h-14 items-center">
           {/* Logo and Mobile Menu Button */}
           <div className="flex items-center space-x-4">
             <Button
@@ -123,7 +131,10 @@ export function MainLayout({ children }: MainLayoutProps) {
               {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </Button>
             
-            <Link href="/dashboard" className="flex items-center space-x-2">
+            <Link
+              href={user?.role === UserRole.DRIVER ? '/driver-dashboard' : '/dashboard'}
+              className="flex items-center space-x-2"
+            >
               <MapPin className="h-6 w-6 text-primary" />
               <span className="font-bold text-lg">Gaza Logistics</span>
             </Link>
@@ -210,7 +221,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-b bg-background">
-          <nav className="container py-2">
+          <nav className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-2">
             {availableNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -234,7 +245,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       )}
 
       {/* Main Content */}
-      <main className="container py-6">
+      <main className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
     </div>

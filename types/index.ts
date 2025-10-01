@@ -23,14 +23,17 @@ export interface Driver {
   id: string;
   contractorId: string;
   tenantId: string;
+  userId?: string; // Link to User account for driver login
   name: string;
   nationalId: string;
   phone?: string;
-  approvalStatus: ApprovalStatus;
+  licenseNumber?: string;
+  licenseExpiry?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
   contractor?: Contractor;
+  missionDrivers?: MissionDriver[]; // Driver's mission assignments
 }
 
 export interface Contractor {
@@ -70,6 +73,23 @@ export interface Mission {
   createdBy: string;
   creator?: User;
   trucks?: Truck[];
+  missionDrivers?: MissionDriver[]; // Drivers assigned to this mission
+}
+
+// Mission Driver Assignment
+export interface MissionDriver {
+  id: string;
+  missionId: string;
+  driverId: string;
+  tenantId: string;
+  status: MissionDriverStatus;
+  assignedAt: string;
+  assignedBy: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  notes?: string;
+  mission?: Mission;
+  driver?: Driver;
 }
 
 // Enums
@@ -78,10 +98,11 @@ export enum UserRole {
   OPS_MANAGER = 'OPS_MANAGER',
   CONTRACTOR_FOCAL_POINT = 'CONTRACTOR_FOCAL_POINT',
   MAINTENANCE = 'MAINTENANCE',
-  FINANCE_AUDIT = 'FINANCE_AUDIT'
+  FINANCE_AUDIT = 'FINANCE_AUDIT',
+  DRIVER = 'DRIVER'
 }
 
-export enum ApprovalStatus {
+export enum MissionDriverStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   DENIED = 'DENIED'
@@ -90,19 +111,17 @@ export enum ApprovalStatus {
 export enum TruckStatus {
   IDLE = 'IDLE',
   DISPATCHED = 'DISPATCHED',
-  AT_FUEL_STATION = 'AT_FUEL_STATION',
+  FUELING_REQUESTED = 'FUELING_REQUESTED',
   FUELED = 'FUELED',
-  AT_HP1_GATE = 'AT_HP1_GATE',
-  HP1_CLEARED = 'HP1_CLEARED',
-  AT_HP2_GATE = 'AT_HP2_GATE',
-  HP2_CLEARED = 'HP2_CLEARED',
-  AT_LOADING_POINT = 'AT_LOADING_POINT',
+  HP1_WAIT = 'HP1_WAIT',
+  HP2_WAIT = 'HP2_WAIT',
+  LOADING_PREP = 'LOADING_PREP',
   LOADED = 'LOADED',
-  EN_ROUTE = 'EN_ROUTE',
+  EXITING = 'EXITING',
   DELIVERED = 'DELIVERED',
-  RETURNING = 'RETURNING',
+  RECONCILED = 'RECONCILED',
   MAINTENANCE = 'MAINTENANCE',
-  OUT_OF_SERVICE = 'OUT_OF_SERVICE'
+  LOOTED = 'LOOTED'
 }
 
 export enum BorderType {
@@ -192,4 +211,41 @@ export interface TruckStatusCount {
   status: TruckStatus;
   count: number;
   percentage: number;
+}
+
+// Driver Portal Types
+export interface DriverAssignment {
+  truck: {
+    id: string;
+    plateNo: string;
+    capacityTons: number;
+    status: TruckStatus;
+  };
+  mission?: {
+    id: string;
+    name: string;
+    date: string;
+    border: string;
+  };
+  currentCheckpoint?: string;
+  nextAction?: string;
+  fuelEvents?: Array<{
+    id: string;
+    liters: number;
+    stationName: string;
+    timestamp: string;
+  }>;
+  lastUpdate?: string;
+}
+
+export interface FuelReportData {
+  liters: number;
+  stationName: string;
+  missionId?: string;
+  receiptUrl?: string;
+}
+
+export interface StatusUpdateData {
+  status: TruckStatus;
+  notes?: string;
 }
