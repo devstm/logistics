@@ -8,6 +8,8 @@ import { config } from './config';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import userRoutes from './routes/userRoutes';
 import gazaRoutes from './routes/gazaRoutes';
+import driverPortalRoutes from './routes/driverPortalRoutes';
+import missionDriverRoutes from './routes/missionDriverRoutes';
 
 const app = express();
 
@@ -51,6 +53,8 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/users', userRoutes);
 app.use('/api/gaza', gazaRoutes);
+app.use('/api/driver', driverPortalRoutes);
+app.use('/api/missions', missionDriverRoutes);
 
 // Catch 404 and forward to error handler
 app.use(notFound);

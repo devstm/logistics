@@ -117,13 +117,6 @@ class ApiClient {
     });
   }
 
-  async approveDriver(id: string, approval: { status: string; notes?: string }) {
-    return this.request(`/api/gaza/drivers/${id}/approve`, {
-      method: 'POST',
-      body: JSON.stringify(approval),
-    });
-  }
-
   async getDriverStats() {
     try {
       const response = await this.request('/api/gaza/drivers/stats');

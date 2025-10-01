@@ -45,8 +45,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 export const requireRole = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.userRole || !allowedRoles.includes(req.userRole)) {
-      res.status(403).json({ 
-        message: `Access denied. Required role: ${allowedRoles.join(' or ')}` 
+      res.status(403).json({
+        message: `Access denied. Required role: ${allowedRoles.join(' or ')}`
       });
       return;
     }
@@ -57,6 +57,9 @@ export const requireRole = (allowedRoles: string[]) => {
 export const requireOpsManager = requireRole(['OPS_MANAGER']);
 export const requireDispatcherOrOps = requireRole(['DISPATCHER', 'OPS_MANAGER']);
 export const requireFinanceAudit = requireRole(['FINANCE_AUDIT', 'OPS_MANAGER']);
+
+// Export alias for consistency
+export const authMiddleware = authenticateToken;
 
 export const requireTenantAccess = (req: Request, res: Response, next: NextFunction): void => {
   // For Gaza API routes, tenant access is controlled by JWT token

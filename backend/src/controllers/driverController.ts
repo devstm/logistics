@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { DriverService, CreateDriverData, UpdateDriverData, DriverImportData } from '../services/driverService';
 import { AuditService } from '../services/auditService';
-import { ApprovalStatus } from '@prisma/client';
 
 interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -59,7 +58,7 @@ export class DriverController {
   async getDrivers(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const tenantId = req.tenantId!;
-      const { status, page = '1', limit = '50', search } = req.query;
+      const { contractorId, page = '1', limit = '50', search } = req.query;
 
       if (!tenantId) {
         res.status(401).json({
@@ -85,7 +84,7 @@ export class DriverController {
       const result = await this.driverService.getDriversByTenant(
         tenantId,
         {
-          status: status as ApprovalStatus,
+          contractorId: contractorId as string,
           page: pageNum,
           limit: limitNum,
           search: search as string
@@ -199,58 +198,6 @@ export class DriverController {
     }
   }
 
-  async approveDriver(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const { status, notes } = req.body;
-      const tenantId = req.tenantId!;
-      const userId = req.userId!;
-
-      if (!userId || !tenantId) {
-        res.status(401).json({
-          success: false,
-          error: 'Authentication required',
-          type: 'auth_error'
-        });
-        return;
-      }
-
-      if (!id || id.trim() === '') {
-        res.status(400).json({
-          success: false,
-          error: 'Driver ID is required',
-          type: 'validation_error'
-        });
-        return;
-      }
-
-      if (!status || !Object.values(ApprovalStatus).includes(status)) {
-        res.status(400).json({
-          success: false,
-          error: 'Valid approval status is required (APPROVED, DENIED, PENDING)',
-          type: 'validation_error'
-        });
-        return;
-      }
-
-      const updatedDriver = await this.driverService.updateDriverApprovalStatus(
-        id,
-        tenantId,
-        userId,
-        status,
-        notes
-      );
-
-      res.json({
-        success: true,
-        data: updatedDriver,
-        message: `Driver ${status.toLowerCase()} successfully`
-      });
-    } catch (error) {
-      this.handleError(res, error, 'updating driver approval status');
-    }
-  }
-
   async bulkImportDrivers(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { drivers }: { drivers: DriverImportData[] } = req.body;
@@ -302,51 +249,6 @@ export class DriverController {
       });
     } catch (error) {
       this.handleError(res, error, 'bulk importing drivers');
-    }
-  }
-
-  async bulkApproveDrivers(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const { driverIds }: { driverIds: string[] } = req.body;
-      const tenantId = req.tenantId!;
-      const userId = req.userId!;
-
-      if (!userId || !tenantId) {
-        res.status(401).json({
-          success: false,
-          error: 'Authentication required',
-          type: 'auth_error'
-        });
-        return;
-      }
-
-      if (!Array.isArray(driverIds) || driverIds.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid driver IDs - must be a non-empty array',
-          type: 'validation_error'
-        });
-        return;
-      }
-
-      if (driverIds.length > 100) {
-        res.status(400).json({
-          success: false,
-          error: 'Too many drivers - maximum 100 per bulk operation',
-          type: 'validation_error'
-        });
-        return;
-      }
-
-      const results = await this.driverService.bulkApproveDrivers(driverIds, tenantId, userId);
-
-      res.json({
-        success: true,
-        data: results,
-        message: `Successfully processed ${driverIds.length} drivers`
-      });
-    } catch (error) {
-      this.handleError(res, error, 'bulk approving drivers');
     }
   }
 

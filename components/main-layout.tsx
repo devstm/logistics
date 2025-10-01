@@ -38,6 +38,12 @@ const navigationItems = [
     roles: [UserRole.DISPATCHER, UserRole.OPS_MANAGER, UserRole.CONTRACTOR_FOCAL_POINT, UserRole.MAINTENANCE, UserRole.FINANCE_AUDIT],
   },
   {
+    title: 'My Assignment',
+    href: '/driver-dashboard',
+    icon: Truck,
+    roles: [UserRole.DRIVER],
+  },
+  {
     title: 'Drivers',
     href: '/drivers',
     icon: Users,
@@ -102,6 +108,8 @@ export function MainLayout({ children }: MainLayoutProps) {
         return 'destructive';
       case UserRole.FINANCE_AUDIT:
         return 'secondary';
+      case UserRole.DRIVER:
+        return 'outline';
       default:
         return 'outline';
     }
@@ -123,7 +131,10 @@ export function MainLayout({ children }: MainLayoutProps) {
               {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </Button>
             
-            <Link href="/dashboard" className="flex items-center space-x-2">
+            <Link
+              href={user?.role === UserRole.DRIVER ? '/driver-dashboard' : '/dashboard'}
+              className="flex items-center space-x-2"
+            >
               <MapPin className="h-6 w-6 text-primary" />
               <span className="font-bold text-lg">Gaza Logistics</span>
             </Link>

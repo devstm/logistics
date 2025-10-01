@@ -1,4 +1,4 @@
-import { Driver, ApprovalStatus, Contractor } from '@prisma/client';
+import { Driver, Contractor } from '@prisma/client';
 import { prisma } from '../database';
 import { AuditService } from './auditService';
 
@@ -18,7 +18,6 @@ export interface UpdateDriverData {
   phone?: string;
   licenseNumber?: string;
   licenseExpiry?: string;
-  approvalStatus?: ApprovalStatus;
   notes?: string;
 }
 
@@ -34,7 +33,7 @@ export interface DriverImportData {
 }
 
 export interface DriverFilters {
-  status?: ApprovalStatus;
+  contractorId?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -144,7 +143,6 @@ export class DriverService {
       licenseNumber: data.licenseNumber?.trim() || null,
       licenseExpiry: data.licenseExpiry?.trim() ? new Date(data.licenseExpiry.trim()) : null,
       notes: data.notes?.trim() || null,
-      approvalStatus: 'PENDING' as ApprovalStatus,
     };
 
     const driver = await prisma.driver.create({
@@ -169,29 +167,12 @@ export class DriverService {
 
   async getDriversByTenant(
     tenantId: string,
-    filters?: DriverFilters | ApprovalStatus
+    filters?: DriverFilters
   ): Promise<DriverWithContractor[] | DriverSearchResult> {
-    // Handle backward compatibility - if filters is a string, treat as approval status
-    if (typeof filters === 'string') {
-      const whereClause: any = { tenantId };
-      if (filters) {
-        whereClause.approvalStatus = filters;
-      }
-
-      return await prisma.driver.findMany({
-        where: whereClause,
-        include: {
-          contractor: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
-
-    // Handle new filter object format
     const whereClause: any = { tenantId };
 
-    if (filters?.status) {
-      whereClause.approvalStatus = filters.status;
+    if (filters?.contractorId) {
+      whereClause.contractorId = filters.contractorId;
     }
 
     if (filters?.search) {
@@ -282,9 +263,7 @@ export class DriverService {
       tenantId,
       entityType: 'Driver',
       entityId: id,
-      action: data.approvalStatus ? 
-        (data.approvalStatus === 'APPROVED' ? 'APPROVE' : 'DENY') : 
-        'UPDATE',
+      action: 'UPDATE',
       beforeJson: beforeDriver,
       afterJson: updatedDriver,
       byUser: userId,
@@ -293,88 +272,6 @@ export class DriverService {
     return updatedDriver;
   }
 
-  async approveDriver(id: string, tenantId: string, userId: string, notes?: string): Promise<Driver> {
-    return await this.updateDriver(id, tenantId, {
-      approvalStatus: 'APPROVED',
-      notes: notes || 'Driver approved for missions',
-    }, userId);
-  }
-
-  async denyDriver(id: string, tenantId: string, userId: string, reason: string): Promise<Driver> {
-    return await this.updateDriver(id, tenantId, {
-      approvalStatus: 'DENIED',
-      notes: reason,
-    }, userId);
-  }
-
-  async updateDriverApprovalStatus(
-    id: string,
-    tenantId: string,
-    userId: string,
-    status: ApprovalStatus,
-    notes?: string
-  ): Promise<Driver> {
-    return await this.updateDriver(id, tenantId, {
-      approvalStatus: status,
-      notes: notes || `Driver ${status.toLowerCase()} by system`,
-    }, userId);
-  }
-
-  async bulkApproveDrivers(
-    driverIds: string[],
-    tenantId: string,
-    userId: string
-  ): Promise<{ success: number; failed: number; errors: string[] }> {
-    const results = {
-      success: 0,
-      failed: 0,
-      errors: [] as string[]
-    };
-
-    await prisma.$transaction(async (tx) => {
-      for (const driverId of driverIds) {
-        try {
-          const beforeDriver = await tx.driver.findFirst({
-            where: { id: driverId, tenantId },
-          });
-
-          if (!beforeDriver) {
-            results.failed++;
-            results.errors.push(`Driver ${driverId} not found`);
-            continue;
-          }
-
-          if (beforeDriver.approvalStatus === 'APPROVED') {
-            results.errors.push(`Driver ${beforeDriver.name} is already approved`);
-            continue;
-          }
-
-          const updatedDriver = await tx.driver.update({
-            where: { id: driverId },
-            data: { approvalStatus: 'APPROVED' },
-          });
-
-          // Log audit event
-          await this.auditService.logEvent({
-            tenantId,
-            entityType: 'Driver',
-            entityId: driverId,
-            action: 'BULK_APPROVE',
-            beforeJson: beforeDriver,
-            afterJson: updatedDriver,
-            byUser: userId,
-          });
-
-          results.success++;
-        } catch (error) {
-          results.failed++;
-          results.errors.push(`Failed to approve driver ${driverId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      }
-    });
-
-    return results;
-  }
 
   async importDrivers(
     driversData: DriverImportData[],
@@ -427,7 +324,6 @@ export class DriverService {
               name: driverData.name,
               nationalId: driverData.nationalId,
               phone: driverData.phone,
-              approvalStatus: 'PENDING',
             },
           });
 
@@ -454,15 +350,9 @@ export class DriverService {
   async getDriverStatistics(tenantId: string) {
     const [
       totalDrivers,
-      approvedDrivers,
-      pendingDrivers,
-      deniedDrivers,
       driversByContractor
     ] = await Promise.all([
       prisma.driver.count({ where: { tenantId } }),
-      prisma.driver.count({ where: { tenantId, approvalStatus: 'APPROVED' } }),
-      prisma.driver.count({ where: { tenantId, approvalStatus: 'PENDING' } }),
-      prisma.driver.count({ where: { tenantId, approvalStatus: 'DENIED' } }),
       prisma.driver.groupBy({
         by: ['contractorId'],
         where: { tenantId },
@@ -472,9 +362,6 @@ export class DriverService {
 
     return {
       total: totalDrivers,
-      approved: approvedDrivers,
-      pending: pendingDrivers,
-      denied: deniedDrivers,
       byContractor: driversByContractor.map((item: any) => ({
         contractorId: item.contractorId,
         count: item._count.contractorId,

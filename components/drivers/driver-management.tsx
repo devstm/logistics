@@ -49,14 +49,11 @@ import {
   UserX,
 } from 'lucide-react';
 
-import { Driver, ApprovalStatus, UserRole, Contractor } from '../../types';
+import { Driver, UserRole, Contractor } from '../../types';
 import apiClient from '../../lib/api-client';
 
 interface DriverStats {
   total: number;
-  approved: number;
-  pending: number;
-  denied: number;
   byContractor?: Array<{
     contractorId: string;
     count: number;
@@ -69,14 +66,10 @@ export function DriverManagement() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [stats, setStats] = useState<DriverStats>({
     total: 0,
-    approved: 0,
-    pending: 0,
-    denied: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [contractorFilter, setContractorFilter] = useState<string>('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -112,9 +105,6 @@ export function DriverManagement() {
   const [contractorFormLoading, setContractorFormLoading] = useState(false);
   const [contractorFormError, setContractorFormError] = useState('');
 
-  // Bulk operations state
-  const [selectedDrivers, setSelectedDrivers] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Data fetching
   const fetchData = useCallback(async () => {
@@ -156,9 +146,6 @@ export function DriverManagement() {
       // Handle stats - calculate from drivers data if API fails
       let statsData = {
         total: 0,
-        approved: 0,
-        pending: 0,
-        denied: 0,
       };
 
       if (statsResponse.status === 'fulfilled' && statsResponse.value?.data) {
@@ -173,9 +160,6 @@ export function DriverManagement() {
 
         statsData = {
           total: driversArray.length,
-          approved: driversArray.filter((d: Driver) => d.approvalStatus === ApprovalStatus.APPROVED).length,
-          pending: driversArray.filter((d: Driver) => d.approvalStatus === ApprovalStatus.PENDING).length,
-          denied: driversArray.filter((d: Driver) => d.approvalStatus === ApprovalStatus.DENIED).length,
         };
       }
 
@@ -318,24 +302,6 @@ export function DriverManagement() {
     }
   };
 
-  const handleApproval = async (driverId: string, status: ApprovalStatus, notes?: string) => {
-    try {
-      await apiClient.approveDriver(driverId, { status, notes });
-      await fetchData();
-      toast({
-        title: 'Success',
-        description: `Driver ${status.toLowerCase()} successfully`,
-      });
-    } catch (err) {
-      console.error('Failed to update driver status:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to update driver status',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleDelete = async (driverId: string) => {
     if (!confirm('Are you sure you want to delete this driver?')) return;
 
@@ -430,18 +396,12 @@ export function DriverManagement() {
 
   const handleExport = () => {
     try {
-      // Use selected drivers if any are selected, otherwise use filtered drivers
-      const dataToExport = selectedDrivers.size > 0
-        ? filteredDrivers.filter(driver => selectedDrivers.has(driver.id))
-        : filteredDrivers;
+      const dataToExport = filteredDrivers;
 
       if (dataToExport.length === 0) {
-        const message = selectedDrivers.size > 0
-          ? 'No selected drivers to export.'
-          : 'No drivers to export. Try adjusting your filters.';
         toast({
           title: 'No Data',
-          description: message,
+          description: 'No drivers to export. Try adjusting your filters.',
           variant: 'destructive',
         });
         return;
@@ -455,7 +415,6 @@ export function DriverManagement() {
         'Contractor',
         'License Number',
         'License Expiry',
-        'Status',
         'Notes',
         'Created At',
         'Updated At'
@@ -471,7 +430,6 @@ export function DriverManagement() {
           `"${driver.contractor?.name || ''}"`,
           `"${driver.licenseNumber || ''}"`,
           `"${driver.licenseExpiry ? new Date(driver.licenseExpiry).toLocaleDateString() : ''}"`,
-          `"${driver.approvalStatus}"`,
           `"${driver.notes || ''}"`,
           `"${new Date(driver.createdAt).toLocaleString()}"`,
           `"${new Date(driver.updatedAt).toLocaleString()}"`
@@ -484,9 +442,7 @@ export function DriverManagement() {
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
 
-      const filename = selectedDrivers.size > 0
-        ? `drivers-selected-export-${new Date().toISOString().split('T')[0]}.csv`
-        : `drivers-export-${new Date().toISOString().split('T')[0]}.csv`;
+      const filename = `drivers-export-${new Date().toISOString().split('T')[0]}.csv`;
 
       link.setAttribute('download', filename);
       link.style.visibility = 'hidden';
@@ -495,13 +451,9 @@ export function DriverManagement() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      const exportMessage = selectedDrivers.size > 0
-        ? `Exported ${dataToExport.length} selected drivers to CSV file.`
-        : `Exported ${dataToExport.length} drivers to CSV file.`;
-
       toast({
         title: 'Export Successful',
-        description: exportMessage,
+        description: `Exported ${dataToExport.length} drivers to CSV file.`,
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -678,39 +630,12 @@ export function DriverManagement() {
   };
 
   // Bulk operations
-  const handleBulkApprove = async () => {
-    if (selectedDrivers.size === 0) return;
-
-    setBulkLoading(true);
-    try {
-      await apiClient.approveDriver(Array.from(selectedDrivers).join(','), {
-        status: ApprovalStatus.APPROVED
-      });
-      await fetchData();
-      setSelectedDrivers(new Set());
-      toast({
-        title: 'Success',
-        description: `${selectedDrivers.size} drivers approved successfully`,
-      });
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to approve drivers',
-        variant: 'destructive',
-      });
-    } finally {
-      setBulkLoading(false);
-    }
-  };
+  // Note: Bulk approval removed - drivers are now approved per-mission
 
   // Permission checks
   const canManageDrivers = () => {
     if (!user) return false;
     return [UserRole.DISPATCHER, UserRole.OPS_MANAGER, UserRole.CONTRACTOR_FOCAL_POINT].includes(user.role);
-  };
-
-  const canApprove = () => {
-    return user?.role === UserRole.OPS_MANAGER;
   };
 
   const canDelete = () => {
@@ -724,41 +649,11 @@ export function DriverManagement() {
                            driver.nationalId.includes(searchTerm) ||
                            driver.phone?.includes(searchTerm);
 
-      const matchesStatus = statusFilter === 'all' || driver.approvalStatus === statusFilter;
       const matchesContractor = contractorFilter === 'all' || driver.contractorId === contractorFilter;
 
-      return matchesSearch && matchesStatus && matchesContractor;
+      return matchesSearch && matchesContractor;
     });
-  }, [drivers, searchTerm, statusFilter, contractorFilter]);
-
-  // Status badge component
-  const getStatusBadge = (status: ApprovalStatus) => {
-    switch (status) {
-      case ApprovalStatus.APPROVED:
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-200">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Approved
-          </Badge>
-        );
-      case ApprovalStatus.DENIED:
-        return (
-          <Badge variant="destructive">
-            <XCircle className="w-3 h-3 mr-1" />
-            Denied
-          </Badge>
-        );
-      case ApprovalStatus.PENDING:
-        return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
+  }, [drivers, searchTerm, contractorFilter]);
 
   // Stats cards
   const statsCards = [
@@ -768,27 +663,6 @@ export function DriverManagement() {
       icon: Users,
       color: 'bg-blue-500',
       description: 'All registered drivers',
-    },
-    {
-      title: 'Approved',
-      value: stats.approved,
-      icon: UserCheck,
-      color: 'bg-green-500',
-      description: 'Ready for missions',
-    },
-    {
-      title: 'Pending',
-      value: stats.pending,
-      icon: Clock,
-      color: 'bg-yellow-500',
-      description: 'Awaiting approval',
-    },
-    {
-      title: 'Denied',
-      value: stats.denied,
-      icon: UserX,
-      color: 'bg-red-500',
-      description: 'Not approved',
     },
   ];
 
@@ -879,19 +753,6 @@ export function DriverManagement() {
                   </div>
                 </div>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value={ApprovalStatus.PENDING}>Pending</SelectItem>
-                    <SelectItem value={ApprovalStatus.APPROVED}>Approved</SelectItem>
-                    <SelectItem value={ApprovalStatus.DENIED}>Denied</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Select value={contractorFilter} onValueChange={setContractorFilter}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Contractor" />
@@ -906,36 +767,6 @@ export function DriverManagement() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Bulk Actions */}
-              {selectedDrivers.size > 0 && (
-                <div className="mt-4 p-4 bg-muted rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {selectedDrivers.size} driver(s) selected
-                    </span>
-                    <div className="space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedDrivers(new Set())}
-                      >
-                        Clear Selection
-                      </Button>
-                      {canApprove() && (
-                        <Button
-                          size="sm"
-                          onClick={handleBulkApprove}
-                          disabled={bulkLoading}
-                        >
-                          {bulkLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Approve Selected
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -953,24 +784,10 @@ export function DriverManagement() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">
-                        <input
-                          type="checkbox"
-                          checked={selectedDrivers.size === filteredDrivers.length && filteredDrivers.length > 0}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedDrivers(new Set(filteredDrivers.map(d => d.id)));
-                            } else {
-                              setSelectedDrivers(new Set());
-                            }
-                          }}
-                        />
-                      </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>National ID</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Contractor</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead>License</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -979,15 +796,15 @@ export function DriverManagement() {
                   <TableBody>
                     {filteredDrivers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           <div className="flex flex-col items-center space-y-2">
                             <Users className="h-8 w-8 text-muted-foreground" />
                             <p className="text-muted-foreground">
-                              {searchTerm || statusFilter !== 'all' || contractorFilter !== 'all'
+                              {searchTerm || contractorFilter !== 'all'
                                 ? 'No drivers match your search criteria'
                                 : 'No drivers registered yet'}
                             </p>
-                            {!searchTerm && statusFilter === 'all' && contractorFilter === 'all' && (
+                            {!searchTerm && contractorFilter === 'all' && (
                               <Button onClick={() => setShowAddForm(true)} variant="outline" size="sm">
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add First Driver
@@ -999,26 +816,10 @@ export function DriverManagement() {
                     ) : (
                       filteredDrivers.map((driver) => (
                         <TableRow key={driver.id}>
-                          <TableCell>
-                            <input
-                              type="checkbox"
-                              checked={selectedDrivers.has(driver.id)}
-                              onChange={(e) => {
-                                const newSelected = new Set(selectedDrivers);
-                                if (e.target.checked) {
-                                  newSelected.add(driver.id);
-                                } else {
-                                  newSelected.delete(driver.id);
-                                }
-                                setSelectedDrivers(newSelected);
-                              }}
-                            />
-                          </TableCell>
                           <TableCell className="font-medium">{driver.name}</TableCell>
                           <TableCell>{driver.nationalId}</TableCell>
                           <TableCell>{driver.phone || 'N/A'}</TableCell>
                           <TableCell>{driver.contractor?.name || 'N/A'}</TableCell>
-                          <TableCell>{getStatusBadge(driver.approvalStatus)}</TableCell>
                           <TableCell>
                             {driver.licenseNumber ? (
                               <div className="text-sm">
@@ -1057,25 +858,6 @@ export function DriverManagement() {
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
-                                {canApprove() && driver.approvalStatus === ApprovalStatus.PENDING && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={() => handleApproval(driver.id, ApprovalStatus.APPROVED)}
-                                      className="text-green-600"
-                                    >
-                                      <CheckCircle className="mr-2 h-4 w-4" />
-                                      Approve
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleApproval(driver.id, ApprovalStatus.DENIED)}
-                                      className="text-red-600"
-                                    >
-                                      <XCircle className="mr-2 h-4 w-4" />
-                                      Deny
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
                                 {canDelete() && (
                                   <>
                                     <DropdownMenuSeparator />
@@ -1578,12 +1360,6 @@ export function DriverManagement() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
                   <p className="text-sm">{selectedDriver.phone || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                  <div className="mt-1">
-                    {getStatusBadge(selectedDriver.approvalStatus)}
-                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Contractor</Label>

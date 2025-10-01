@@ -2,27 +2,23 @@
 
 import { useAuth } from '../../context/auth-context';
 import { MainLayout } from '../../components/main-layout';
-import { DriverManagement } from '../../components/drivers/driver-management';
+import { DriverDashboard } from '../../components/driver/driver-dashboard';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { UserRole } from '../../types';
 
-type test =
-{
-  'text':  string
-}
-
-
-const intergerNum: Array<number> = [10] 
-console.log('intergerNum: ', intergerNum);
-export default function DriversPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+export default function DriverDashboardPage() {
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/');
     }
-  }, [isAuthenticated, isLoading, router]);
+    if (!isLoading && isAuthenticated && user?.role !== UserRole.DRIVER) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, user, router]);
 
   if (isLoading) {
     return (
@@ -32,13 +28,13 @@ export default function DriversPage() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || user?.role !== UserRole.DRIVER) {
     return null;
   }
 
   return (
     <MainLayout>
-      <DriverManagement />
+      <DriverDashboard />
     </MainLayout>
   );
 }
